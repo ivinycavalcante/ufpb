@@ -1,0 +1,120 @@
+#include <Wire.h>
+#include "HT_SSD1306Wire.h"
+
+// Configuração do display OLED para Heltec ESP32 LoRa V2
+static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // Endereço I2C, frequência, SDA/SCL padrão da Heltec, resolução e pino de reset
+
+// Pino do botão embutido (PRG/BOOT)
+#define BUTTON_PIN 0
+
+// Limites de tempo (ajustáveis)
+#define DOT_DURATION 300         // < 300ms → ponto
+#define LETTER_PAUSE 3000        // >= 3s de pausa → fim do caractere
+
+// Estados
+bool isPressed = false;
+unsigned long pressStart = 0;
+unsigned long lastReleaseTime = 0;
+
+String tonesBuffer = "";
+String text = "";
+
+// Tabela Morse
+String symbolsAlphabet[][2] = {
+  { ".-", "A" }, { "-...", "B" }, { "-.-.", "C" }, { "-..", "D" }, { ".", "E" },
+  { "..-.", "F" }, { "--.", "G" }, { "....", "H" }, { "..", "I" }, { ".---", "J" },
+  { "-.-", "K" }, { ".-..", "L" }, { "--", "M" }, { "-.", "N" }, { "---", "O" },
+  { ".--.", "P" }, { "--.-", "Q" }, { ".-.", "R" }, { "...", "S" }, { "-", "T" },
+  { "..-", "U" }, { "...-", "V" }, { ".--", "W" }, { "-..-", "X" }, { "-.--", "Y" },
+  { "--..", "Z" }, { ".----", "1" }, { "..---", "2" }, { "...--", "3" },
+  { "....-", "4" }, { ".....", "5" }, { "-....", "6" }, { "--...", "7" },
+  { "---..", "8" }, { "----.", "9" }, { "-----", "0" }
+};
+
+char getSymbolFromBuffer() {
+  for (int i = 0; i < sizeof(symbolsAlphabet) / sizeof(symbolsAlphabet[0]); i++) {
+    if (tonesBuffer == symbolsAlphabet[i][0]) return symbolsAlphabet[i][1][0];
+  }
+  return (char)0;
+}
+
+void displayText(const String &currentText, const String &currentBuffer) {
+  display.clear();
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.setFont(ArialMT_Plain_10);
+
+  // Exibe texto atual
+  display.drawString(0, 0, "Texto atual:");
+  display.setFont(ArialMT_Plain_16);
+  display.drawString(0, 12, currentText);
+
+  // Exibe buffer Morse
+  display.setFont(ArialMT_Plain_10);
+  display.drawString(0, 40, "Buffer: " + currentBuffer);
+
+  display.display();
+}
+
+void setup() {
+  // Ativa o regulador externo para o display
+  pinMode(Vext, OUTPUT);
+  digitalWrite(Vext, LOW); // Liga o regulador Vext
+  delay(100);
+
+  // Inicializa o display
+  display.init();
+  display.clear();
+  display.display();
+
+  pinMode(BUTTON_PIN, INPUT_PULLUP); // PRG com pull-up
+  Serial.begin(115200);
+
+  // Exibe mensagem inicial
+  displayText(text, tonesBuffer);
+}
+
+void loop() {
+  bool buttonState = digitalRead(BUTTON_PIN) == LOW;
+  unsigned long now = millis();
+
+  if (buttonState && !isPressed) {
+    // Início do toque
+    pressStart = now;
+    isPressed = true;
+  }
+
+  if (!buttonState && isPressed) {
+    // Fim do toque
+    unsigned long duration = now - pressStart;
+    isPressed = false;
+    lastReleaseTime = now;
+
+    if (duration < DOT_DURATION) {
+      tonesBuffer += ".";
+      Serial.print(".");
+    } else {
+      tonesBuffer += "-";
+      Serial.print("-");
+    }
+
+    displayText(text, tonesBuffer);
+  }
+
+  // Checar se houve pausa para separar letra
+  if (!isPressed && tonesBuffer != "" && (now - lastReleaseTime >= LETTER_PAUSE)) {
+    char decoded = getSymbolFromBuffer();
+    if (decoded != 0) {
+      text += decoded;
+      Serial.print(" -> ");
+      Serial.println(decoded);
+      Serial.println("Texto atual: " + text);
+    } else {
+      Serial.println(" -> ?");
+    }
+
+    tonesBuffer = "";
+    displayText(text, tonesBuffer);
+  }
+
+  delay(10); // debounce simples
+}
