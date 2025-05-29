@@ -1,0 +1,30 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Caminho do arquivo
+caminho_arquivo = r"D:\Usuário\iviny\Downloads\scope_0.csv"
+
+# Ler o CSV com separador de vírgula
+dados = pd.read_csv(caminho_arquivo, sep=',', decimal='.')
+dados.columns = dados.columns.str.strip() 
+
+# Verificar os nomes das colunas
+print("Nomes das colunas:", dados.columns)
+print(dados.head())
+
+# Converter colunas para numérico
+dados['x'] = pd.to_numeric(dados['x'], errors='coerce')
+dados['canal1'] = pd.to_numeric(dados['canal1'], errors='coerce')
+dados['canal2'] = pd.to_numeric(dados['canal2'], errors='coerce')
+
+# Plotagem
+plt.figure(figsize=(10,6))
+plt.plot(dados['canal1'], dados['canal2'], label='CH1 (V)')
+plt.plot(dados['canal2'], dados['canal1'], label='CH2 (V)')
+
+plt.title('Curva B-H')
+plt.xlabel('H - intensidade de campo')
+plt.ylabel('B - densidade de campo')
+plt.grid(True)
+plt.legend()
+plt.show()
