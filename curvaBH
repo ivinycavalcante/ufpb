@@ -2,43 +2,34 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-# 📄 Ler arquivo CSV
 caminho_arquivo = r"D:\Usuário\iviny\Downloads\scope_0.csv"
 dados = pd.read_csv(caminho_arquivo, sep=',', decimal='.')
 dados.columns = dados.columns.str.strip()
 
-# 🔍 Verificar colunas
 print("Nomes das colunas:", dados.columns)
 print(dados.head())
 
-# 🧹 Conversão de dados
 dados['x'] = pd.to_numeric(dados['x'], errors='coerce')
 dados['canal1'] = pd.to_numeric(dados['canal1'], errors='coerce')
 dados['canal2'] = pd.to_numeric(dados['canal2'], errors='coerce')
-
-# 🔥 Remover linhas com NaN (ruído de captura)
 dados = dados.dropna()
 
-# 🧠 Remover offset automaticamente
 offset_canal1 = dados['canal1'].mean()
 offset_canal2 = dados['canal2'].mean()
 
 dados['canal1_corrigido'] = dados['canal1'] - offset_canal1
 dados['canal2_corrigido'] = dados['canal2'] - offset_canal2
 
-# ⚙️ Constantes do sistema
-N = 50                 # Número de espiras
-R_shunt = 1            # Ohm (resistor shunt)
-l_m = 0.069            # m (comprimento médio do núcleo)
-A = 0.000201           # m² (área da seção transversal do núcleo)
-R = 10000              # Ohm (resistor do integrador)
-C = 1e-6               # F (capacitor do integrador)
+N = 50                 # numero de espiras
+R_shunt = 1            # resistor shunt
+l_m = 0.069            # comprimento médio do núcleo
+A = 0.000201           # área da seção transversal do núcleo
+R = 10000              # resistor do integrador
+C = 1e-6               # capacitor do integrador
 
-# ⚡ Cálculo de H e B (com unidades físicas)
-dados['H'] = (N * dados['canal1_corrigido']) / (R_shunt * l_m)  # A/m
-dados['B'] = dados['canal2_corrigido'] / (R * C * N * A)        # Tesla
+dados['H'] = (N * dados['canal1_corrigido']) / (R_shunt * l_m)  
+dados['B'] = dados['canal2_corrigido'] / (R * C * N * A)       
 
-# 📊 Plot da curva B-H calibrada
 plt.figure(figsize=(10,6))
 plt.plot(dados['H'], dados['B'], color='darkblue', linewidth=1.5)
 
